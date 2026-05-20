@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>社内文書Q&A</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+    background: #f0f2f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 32px 16px;
+  }
+
+  .container {
+    width: 100%;
+    max-width: 760px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  /* ヘッダー */
+  header {
+    text-align: center;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a1a2e;
+    letter-spacing: 0.05em;
+  }
+  header p {
+    font-size: 0.85rem;
+    color: #666;
+    margin-top: 6px;
+  }
+
+  /* アップロードエリア */
+  .upload-area {
+    background: #fff;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .upload-area h2 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #444;
+    margin-bottom: 14px;
+  }
+  .drop-zone {
+    border: 2px dashed #c5cad3;
+    border-radius: 8px;
+    padding: 28px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: #4f6ef7;
+    background: #f5f7ff;
+  }
+  .drop-zone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .drop-zone .icon { font-size: 2rem; margin-bottom: 8px; }
+  .drop-zone p { font-size: 0.85rem; color: #888; }
+  .drop-zone strong { color: #4f6ef7; }
+
+  .upload-status {
+    margin-top: 12px;
+    font-size: 0.82rem;
+    color: #555;
+    min-height: 20px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .upload-status.ok { color: #16a34a; }
+  .upload-status.err { color: #dc2626; }
+
+  /* チャットエリア */
+  .chat-area {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .chat-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #444;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .chat-messages {
+    padding: 20px;
+    min-height: 320px;
+    max-height: 480px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  .msg {
+    display: flex;
+    gap: 10px;
+    max-width: 90%;
+    animation: fadeUp 0.25s ease;
+  }
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+  .msg .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85rem;
+    flex-shrink: 0;
+  }
+  .msg.user .avatar { background: #4f6ef7; color: #fff; }
+  .msg.bot  .avatar { background: #e8eaf6; color: #444; }
+  .msg .bubble {
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 0.9rem;
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+  .msg.user .bubble { background: #4f6ef7; color: #fff; border-bottom-right-radius: 2px; }
+  .msg.bot  .bubble { background: #f4f5f7; color: #222; border-bottom-left-radius: 2px; }
+
+  /* 入力エリア */
+  .chat-input {
+    border-top: 1px solid #eee;
+    padding: 14px 16px;
+    display: flex;
+    gap: 10px;
+  }
+  .chat-input textarea {
+    flex: 1;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.5;
+    height: 44px;
+    max-height: 120px;
+    overflow-y: auto;
+  }
+  .chat-input textarea:focus { border-color: #4f6ef7; }
+  .chat-input button {
+    background: #4f6ef7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0 18px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.2s, opacity 0.2s;
+    flex-shrink: 0;
+  }
+  .chat-input button:hover { background: #3a5ad9; }
+  .chat-input button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* 初期メッセージ */
+  .empty-state {
+    text-align: center;
+    color: #aaa;
+    margin: auto;
+    padding: 40px 0;
+    font-size: 0.88rem;
+    line-height: 1.8;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <h1>📄 社内文書 Q&A</h1>
+    <p>PDFをアップロードして、文書に関する質問をAIに答えてもらおう</p>
+  </header>
+
+  <!-- アップロード -->
+  <div class="upload-area">
+    <h2>① ドキュメントをアップロード</h2>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" id="fileInput" accept=".pdf,.txt">
+      <div class="icon">📂</div>
+      <p><strong>クリックまたはドラッグ</strong>してPDF・テキストを選択</p>
+    </div>
+    <div class="upload-status" id="uploadStatus"></div>
+  </div>
+
+  <!-- チャット -->
+  <div class="chat-area">
+    <div class="chat-header">💬 チャット</div>
+    <div class="chat-messages" id="messages">
+      <div class="empty-state">
+        PDFをアップロードして<br>文書に関する質問を入力してください
+      </div>
+    </div>
+    <div class="chat-input">
+      <textarea id="input" placeholder="例：有給休暇は何日もらえますか？" rows="1"></textarea>
+      <button id="sendBtn" onclick="sendQuestion()">送信</button>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const uploadStatus = document.getElementById('uploadStatus');
+const messages = document.getElementById('messages');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+
+// ファイルアップロード
+fileInput.addEventListener('change', () => uploadFile(fileInput.files[0]));
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  uploadFile(e.dataTransfer.files[0]);
+});
+
+async function uploadFile(file) {
+  if (!file) return;
+  uploadStatus.className = 'upload-status';
+  uploadStatus.textContent = '⏳ アップロード中...';
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+    uploadStatus.className = 'upload-status ok';
+    uploadStatus.textContent = `✅ ${data.filename}（${data.chunks}チャンク）を読み込みました`;
+    // 初期状態メッセージを消す
+    const empty = messages.querySelector('.empty-state');
+    if (empty) empty.remove();
+    addMessage('bot', `「${data.filename}」を読み込みました。\n何でも質問してください！`);
+  } catch {
+    uploadStatus.className = 'upload-status err';
+    uploadStatus.textContent = '❌ アップロードに失敗しました';
+  }
+}
+
+// 質問
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendQuestion(); }
+});
+
+async function sendQuestion() {
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+  sendBtn.disabled = true;
+
+  addMessage('user', q);
+  const thinking = addMessage('bot', '考え中…');
+
+  try {
+    const res = await fetch('/ask', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q })
+    });
+    const data = await res.json();
+    thinking.querySelector('.bubble').textContent = data.answer;
+  } catch {
+    thinking.querySelector('.bubble').textContent = 'エラーが発生しました。';
+  }
+  sendBtn.disabled = false;
+  messages.scrollTop = messages.scrollHeight;
+}
+
+function addMessage(role, text) {
+  const empty = messages.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `
+    <div class="avatar">${role === 'user' ? '👤' : '🤖'}</div>
+    <div class="bubble">${text}</div>
+  `;
+  messages.appendChild(div);
+  messages.scrollTop = messages.scrollHeight;
+  return div;
+}
+</script>
+</body>
+</html>
