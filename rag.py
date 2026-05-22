@@ -9,12 +9,12 @@ from langchain_classic.chains import RetrievalQA
 
 load_dotenv()
 
-VECTORSTORE_DIR = os.environ.get("VECTORSTORE_DIR", "/tmp/vectorstore")
+# インメモリ保持（Railwayはディスク書き込み不可のため）
+_db = None
 
-# ① 「わかりません」改善 — 文書に記載なければそう言う
 PROMPT = PromptTemplate(
     input_variables=["context", "question"],
-    template="""あなたは社内文書Q&Aアシスタントです。
+    template="""あなたは不動産文書Q&Aアシスタントです。
 以下の【文書抜粋】だけを根拠に質問に答えてください。
 
 【文書抜粋】
@@ -32,38 +32,35 @@ PROMPT = PromptTemplate(
 )
 
 def ingest(pdf_path: str):
-    """PDFを読み込んでベクトルDBに保存"""
+    """PDFを読み込んでインメモリベクトルDBに保存"""
+    global _db
     print(f"📄 読み込み中: {pdf_path}")
     loader = PyPDFLoader(pdf_path)
     docs = loader.load()
 
-    # ② チャンクサイズを500→300に変更（検索ヒット率アップ）
     splitter = RecursiveCharacterTextSplitter(chunk_size=300, chunk_overlap=30)
     chunks = splitter.split_documents(docs)
     print(f"✂️  {len(chunks)}チャンクに分割")
 
-    # 既存のベクトルDBをリセットして再保存
-    if os.path.exists(VECTORSTORE_DIR):
-        shutil.rmtree(VECTORSTORE_DIR)
-
     embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-    db = Chroma.from_documents(chunks, embeddings, persist_directory=VECTORSTORE_DIR)
-    print(f"✅ ベクトルDB保存完了")
+    # persist_directory を指定しない → インメモリ動作
+    _db = Chroma.from_documents(chunks, embeddings)
+    print(f"✅ インメモリDB構築完了")
     return len(chunks)
 
 def ask(question: str) -> str:
     """質問に答える"""
-    embeddings = OpenAIEmbeddings(model="text-embedding-3-small")
-    db = Chroma(persist_directory=VECTORSTORE_DIR, embedding_function=embeddings)
-    retriever = db.as_retriever(search_kwargs={"k": 4})  # 検索数も3→4に
+    global _db
+    if _db is None:
+        return "まだPDFがアップロードされていません。"
 
+    retriever = _db.as_retriever(search_kwargs={"k": 4})
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0)
     chain = RetrievalQA.from_chain_type(
         llm=llm,
         retriever=retriever,
         chain_type_kwargs={"prompt": PROMPT}
     )
-
     result = chain.invoke({"query": question})
     return result["result"]
 
