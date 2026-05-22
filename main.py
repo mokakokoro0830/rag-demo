@@ -7,6 +7,10 @@ from rag import ingest, ask
 
 load_dotenv()
 
+# APIキーの末尾の改行・空白を除去（Railway環境での貼り付けミス対策）
+if os.environ.get("OPENAI_API_KEY"):
+    os.environ["OPENAI_API_KEY"] = os.environ["OPENAI_API_KEY"].strip()
+
 app = FastAPI()
 
 app.add_middleware(
