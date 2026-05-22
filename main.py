@@ -1,7 +1,7 @@
-import os, shutil
+import os, shutil, tempfile
 from fastapi import FastAPI, UploadFile, File
 from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 from rag import ingest, ask
 
@@ -9,14 +9,27 @@ load_dotenv()
 
 app = FastAPI()
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR", tempfile.gettempdir())
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    with open("index.html", encoding="utf-8") as f:
-        return f.read()
+    try:
+        with open("index.html", encoding="utf-8") as f:
+            return f.read()
+    except FileNotFoundError:
+        return "<h1>RAG API is running</h1>"
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
-    path = f"uploads/{file.filename}"
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+    path = os.path.join(UPLOAD_DIR, file.filename)
     with open(path, "wb") as f:
         shutil.copyfileobj(file.file, f)
     chunks = ingest(path)
