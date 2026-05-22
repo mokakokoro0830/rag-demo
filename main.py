@@ -28,12 +28,16 @@ async def index():
 
 @app.post("/upload")
 async def upload(file: UploadFile = File(...)):
-    os.makedirs(UPLOAD_DIR, exist_ok=True)
-    path = os.path.join(UPLOAD_DIR, file.filename)
-    with open(path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    chunks = ingest(path)
-    return {"ok": True, "chunks": chunks, "filename": file.filename}
+    try:
+        os.makedirs(UPLOAD_DIR, exist_ok=True)
+        path = os.path.join(UPLOAD_DIR, file.filename)
+        with open(path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        chunks = ingest(path)
+        return {"ok": True, "chunks": chunks, "filename": file.filename}
+    except Exception as e:
+        import traceback
+        return JSONResponse({"error": str(e), "detail": traceback.format_exc()}, status_code=500)
 
 @app.post("/ask")
 async def ask_question(body: dict):

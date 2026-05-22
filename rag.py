@@ -9,7 +9,7 @@ from langchain_classic.chains import RetrievalQA
 
 load_dotenv()
 
-VECTORSTORE_DIR = "./vectorstore"
+VECTORSTORE_DIR = os.environ.get("VECTORSTORE_DIR", "/tmp/vectorstore")
 
 # ① 「わかりません」改善 — 文書に記載なければそう言う
 PROMPT = PromptTemplate(
